@@ -1,37 +1,28 @@
 { pkgs }:
 
 let
-  packageOverrides = 
-    self: super: 
-      let overrides = 
+
+  packageOverrides =
+    self: super:
+      # Read dependencies resolved with pip2nix
+      let overrides =
         (import ./python-packages.nix {
            inherit pkgs;
            inherit (pkgs) fetchurl fetchgit fetchhg;
          }) self super;
-      in 
-        overrides // {      
-
-          "Pillow" = super.pillow;
-          "pyparsing" = super.pyparsing;
-          "packaging" = super.packaging;
-          "kiwisolver" = super.kiwisolver;
-          "numpy" = super.numpy;
-          "scipy" = super.scipy;
-          "matplotlib" = super.matplotlib;
-          "h5py" = super.h5py;
-          "scikit-learn" = super.scikit-learn;
-
-          "contourpy" = overrides."contourpy".overrideAttrs (oldAttrs: {
-            propagatedBuildInputs = oldAttrs.propagatedBuildInputs ++ [ super.pybind11 ];
-          });
-
-        };
+      in
+      {
+        # Use only dependencies not available in nixpkgs
+        inherit (overrides)
+        "h5io"
+        "mne";
+        # Map aliases required for the previous dependenvies
+        "Jinja2" = self."jinja2";
+      };
 
   python = (pkgs.python39.override {
-    packageOverrides = packageOverrides;
+    inherit packageOverrides;
   });
-
-  mne = python.pkgs.mne;
 
 in
 
@@ -46,19 +37,19 @@ python.pkgs.buildPythonApplication rec {
 
   doCheck = false;
 
-  propagatedBuildInputs = 
-    [ 
-      python.pkgs.setuptools
-      python.pkgs.matplotlib
-      python.pkgs.pyqt5 
-      python.pkgs.h5io
-      python.pkgs.scikit-learn
-      python.pkgs."python-json-logger"
+  propagatedBuildInputs = with python.pkgs;
+    [
+      setuptools
+      matplotlib
+      pyqt5
+      h5io
+      scikit-learn
+      python-json-logger
       mne
     ];
 
-  nativeBuildInputs = [ 
-    pkgs.qt5.wrapQtAppsHook 
+  nativeBuildInputs = with pkgs; [
+    qt5.wrapQtAppsHook
   ];
 
   postFixup = ''
