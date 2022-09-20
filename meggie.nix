@@ -2,23 +2,35 @@
 
 let
 
-  packageOverrides =
-    self: super:
-      # Read dependencies resolved with pip2nix
-      let overrides =
-        (import ./python-packages.nix {
-           inherit pkgs;
-           inherit (pkgs) fetchurl fetchgit fetchhg;
-         }) self super;
+  # Import all generated requirements
+  requirementsFunc = import ./python-packages.nix {
+    inherit pkgs;
+    inherit (builtins) fetchurl;
+    inherit (pkgs) fetchgit fetchhg;
+  };
+
+  # List package names in generated requirements requirements
+  requirementsNames = pkgs.lib.attrNames (requirementsFunc {} {});
+
+
+  # Target Python package overrides
+  packageOverrides = pkgs.lib.foldr pkgs.lib.composeExtensions (self: super: { }) [
+
+    # Import generated requirements not available in nixpkgs (or override them)
+    (self: super:
+      let
+        generated = requirementsFunc self super;
       in
-      {
-        # Use only dependencies not available in nixpkgs
-        inherit (overrides)
-        "h5io"
-        "mne";
-        # Map aliases required for the previous dependenvies
-        "Jinja2" = self."jinja2";
-      };
+
+      # Import generated requirements not available
+      (pkgs.lib.listToAttrs (map
+        (name: { name = name;
+                 value = builtins.getAttr name generated; })
+        (builtins.filter (x: (! builtins.hasAttr x pkgs.python39Packages)) requirementsNames)
+      ))
+    )
+
+  ];
 
   python = (pkgs.python39.override {
     inherit packageOverrides;
