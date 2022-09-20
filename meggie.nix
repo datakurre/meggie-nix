@@ -12,7 +12,6 @@ let
   # List package names in generated requirements requirements
   requirementsNames = pkgs.lib.attrNames (requirementsFunc {} {});
 
-
   # Target Python package overrides
   packageOverrides = pkgs.lib.foldr pkgs.lib.composeExtensions (self: super: { }) [
 
